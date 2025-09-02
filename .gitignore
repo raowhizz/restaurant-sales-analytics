@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv
+*.egg-info/
+.pytest_cache/
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+*.ipynb_checkpoints/
+
+# Excel temporary files
+~$*.xlsx
+~$*.xls
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Streamlit
+.streamlit/
+
+# Data files (optional - uncomment if you don't want to track Excel files)
+# *.xlsx
+# *.xls
+# *.csv
+
+# Log files
+*.log
+
+# Environment variables
+.env
