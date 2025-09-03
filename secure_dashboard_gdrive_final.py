@@ -65,7 +65,7 @@ def check_password():
     """Returns True if user entered correct password"""
     
     # Password hash for: !nnow!2014kiosk$
-    CORRECT_PASSWORD_HASH = "fc3d23022894f258afb4368486547f409fad2da6ac7e573671294c7107e840d3"
+    CORRECT_PASSWORD_HASH = "93e9a50971b9b0735252b9edb6ad4839b3f2d159d957479351957977d5b4ae1f"
     
     def password_entered():
         """Checks whether entered password is correct."""
