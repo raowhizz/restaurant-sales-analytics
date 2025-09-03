@@ -28,7 +28,7 @@ st.set_page_config(
     page_title="Restaurant Sales Analytics Dashboard",
     page_icon="🍽️",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 # ============== GOOGLE DRIVE FILE IDs ==============
@@ -137,6 +137,23 @@ st.markdown("""
         white-space: nowrap;
         overflow: visible;
     }
+    /* Hide sidebar toggle button */
+    [data-testid="collapsedControl"] {
+        display: none;
+    }
+    /* Style logout button */
+    div[data-testid="column"]:nth-child(2) button {
+        background-color: #ff4b4b;
+        color: white;
+        border-radius: 8px;
+        border: none;
+        padding: 8px 16px;
+        font-weight: 600;
+    }
+    div[data-testid="column"]:nth-child(2) button:hover {
+        background-color: #ff3333;
+        color: white;
+    }
     [data-testid="metric-container"] [data-testid="stMetricValue"] {
         font-size: 1rem !important;
         line-height: 1.2 !important;
@@ -166,16 +183,17 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # Header
-st.title("🍽️ Restaurant Sales Analytics Dashboard")
-st.markdown("### Comprehensive analysis of restaurant performance across multiple revenue channels")
-
-# Add logout button in sidebar
-with st.sidebar:
-    if st.button("🚪 Logout"):
+# Header with logout button
+col1, col2 = st.columns([4, 1])
+with col1:
+    st.title("🍽️ Restaurant Sales Analytics Dashboard")
+    st.markdown("### Comprehensive analysis of restaurant performance across multiple revenue channels")
+with col2:
+    st.markdown("<br>", unsafe_allow_html=True)  # Add some spacing
+    if st.button("🚪 Logout", key="logout_btn"):
         for key in st.session_state.keys():
             del st.session_state[key]
         st.rerun()
-    st.markdown("---")
 
 # Function to load data from Google Drive
 @st.cache_data(show_spinner=False)
