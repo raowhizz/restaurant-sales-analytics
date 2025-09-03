@@ -1446,6 +1446,8 @@ with tab7:
                 fig_dist.add_vline(x=0, line_dash="dash", line_color="red", annotation_text="No Change")
                 fig_dist.add_vline(x=np.median(comparison_data['percentage']), line_dash="dash", 
                                  line_color="green", annotation_text="Median")
+                # Set x-axis range to maximum 1000%
+                fig_dist.update_xaxes(range=[None, 1000])
                 st.plotly_chart(fig_dist, use_container_width=True)
             
             # Monthly Trend Heatmap
