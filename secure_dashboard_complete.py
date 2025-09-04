@@ -1302,9 +1302,9 @@ with tab7:
                 )
             
             with col3:
-                # Count restaurants with revenue under $3K in current month only (excluding zero revenue)
-                low_revenue_curr = ((comparison_data['curr_month'] > 0) & (comparison_data['curr_month'] < 3000)).sum()
-                low_revenue_prev = ((comparison_data['prev_month'] > 0) & (comparison_data['prev_month'] < 3000)).sum()
+                # Count restaurants with revenue under $3K in current month (including zero revenue)
+                low_revenue_curr = (comparison_data['curr_month'] < 3000).sum()
+                low_revenue_prev = (comparison_data['prev_month'] < 3000).sum()
                 low_revenue_change = low_revenue_curr - low_revenue_prev
                 st.metric(
                     f"Under $3K in {curr_month.split()[0]}",
