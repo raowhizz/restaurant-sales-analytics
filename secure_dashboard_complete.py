@@ -559,6 +559,95 @@ def generate_insights(df, mom_changes, categories):
     
     return insights
 
+def generate_single_month_insights(df, selected_month):
+    """Generate AI insights for a single month analysis"""
+    insights = []
+    
+    # Basic metrics
+    total_revenue = df['Amount_Collected'].sum()
+    total_restaurants = df['Restaurant_Name'].nunique()
+    active_restaurants = df[df['Amount_Collected'] > 0]['Restaurant_Name'].nunique()
+    zero_revenue = total_restaurants - active_restaurants
+    
+    # Revenue distribution insights
+    if total_restaurants > 0:
+        # Calculate revenue concentration
+        restaurant_revenues = df.groupby('Restaurant_Name')['Amount_Collected'].sum().sort_values(ascending=False)
+        top_10_pct_count = max(1, int(len(restaurant_revenues) * 0.1))
+        top_10_pct_revenue = restaurant_revenues.head(top_10_pct_count).sum()
+        concentration_pct = (top_10_pct_revenue / total_revenue * 100) if total_revenue > 0 else 0
+        
+        insights.append(f"💰 Total revenue of ${total_revenue:,.0f} from {active_restaurants} active restaurants")
+        insights.append(f"📊 Top 10% of restaurants generate {concentration_pct:.1f}% of total revenue")
+        
+        if zero_revenue > 0:
+            insights.append(f"⚠️ {zero_revenue} restaurants with zero revenue need attention")
+    
+    # Channel insights
+    if 'POS_Revenue_Amount' in df.columns and 'ONLINE_Revenue_Amount' in df.columns:
+        pos_revenue = df['POS_Revenue_Amount'].sum()
+        online_revenue = df['ONLINE_Revenue_Amount'].sum()
+        kiosk_revenue = df['KIOSK_Revenue_Amount'].sum() if 'KIOSK_Revenue_Amount' in df.columns else 0
+        
+        # Channel dominance
+        channel_revenues = {'POS': pos_revenue, 'Online': online_revenue, 'Kiosk': kiosk_revenue}
+        dominant_channel = max(channel_revenues, key=channel_revenues.get)
+        dominant_pct = (channel_revenues[dominant_channel] / total_revenue * 100) if total_revenue > 0 else 0
+        
+        insights.append(f"📱 {dominant_channel} channel dominates with {dominant_pct:.1f}% of revenue")
+        
+        # Online adoption
+        online_active = df[df['ONLINE_Revenue_Amount'] > 0]['Restaurant_Name'].nunique()
+        online_adoption = (online_active / active_restaurants * 100) if active_restaurants > 0 else 0
+        insights.append(f"🌐 Online adoption at {online_adoption:.1f}% ({online_active} of {active_restaurants} restaurants)")
+    
+    # At-risk restaurants
+    if 'Amount_Collected' in df.columns:
+        low_revenue = df[(df['Amount_Collected'] > 0) & (df['Amount_Collected'] < 3000)]['Restaurant_Name'].nunique()
+        if low_revenue > 0:
+            insights.append(f"🚨 {low_revenue} restaurants at risk with revenue under $3K")
+    
+    # Statistical insights
+    if 'Amount_Collected' in df.columns and active_restaurants > 0:
+        revenues = df[df['Amount_Collected'] > 0]['Amount_Collected']
+        mean_revenue = revenues.mean()
+        median_revenue = revenues.median()
+        
+        if mean_revenue > median_revenue * 1.5:
+            insights.append(f"📈 Mean revenue (${mean_revenue:,.0f}) significantly higher than median (${median_revenue:,.0f}), indicating top-heavy distribution")
+    
+    return insights
+
+def categorize_single_month_performance(df):
+    """Categorize restaurants based on single month performance"""
+    categories = {
+        'Top Performers': [],
+        'Strong Performers': [],
+        'Average Performers': [],
+        'Low Performers': [],
+        'At Risk': [],
+        'Zero Revenue': []
+    }
+    
+    # Group by restaurant to get total revenue
+    restaurant_revenues = df.groupby('Restaurant_Name')['Amount_Collected'].sum()
+    
+    for restaurant, revenue in restaurant_revenues.items():
+        if revenue == 0:
+            categories['Zero Revenue'].append(restaurant)
+        elif revenue < 3000:
+            categories['At Risk'].append(restaurant)
+        elif revenue < 10000:
+            categories['Low Performers'].append(restaurant)
+        elif revenue < 30000:
+            categories['Average Performers'].append(restaurant)
+        elif revenue < 50000:
+            categories['Strong Performers'].append(restaurant)
+        else:
+            categories['Top Performers'].append(restaurant)
+    
+    return categories, restaurant_revenues
+
 # Search Bar and AI Insights Section
 st.markdown("## 🔍 Search & Insights")
 
@@ -586,8 +675,178 @@ with search_col2:
     # AI Insights
     st.markdown("### 🤖 AI-Generated Insights")
     
-    # Calculate insights if multiple months available
-    if 'Month' in df.columns and df['Month'].nunique() > 1:
+    # Check if single month or multiple months
+    if 'Month' in df.columns and df['Month'].nunique() == 1:
+        # Single month analysis
+        selected_month = df['Month'].iloc[0]
+        single_month_insights = generate_single_month_insights(df, selected_month)
+        categories, restaurant_revenues = categorize_single_month_performance(df)
+        
+        # Display single month insights
+        with st.expander("View Key Insights", expanded=True):
+            for insight in single_month_insights[:5]:  # Show top 5 insights
+                st.markdown(f"• {insight}")
+        
+        # Interactive detailed insights for single month
+        st.markdown("#### 🔍 Detailed Performance Analysis")
+        
+        insight_tabs = st.tabs(["🏆 Top Performers", "⚠️ At Risk", "📊 Channel Leaders", "🔴 Zero Revenue"])
+        
+        with insight_tabs[0]:  # Top Performers
+            if categories['Top Performers']:
+                st.markdown(f"**{len(categories['Top Performers'])} restaurants with revenue > $50K:**")
+                
+                # Create detailed dataframe for top performers
+                top_data = []
+                for restaurant in categories['Top Performers']:
+                    revenue = restaurant_revenues[restaurant]
+                    # Get channel breakdown if available
+                    restaurant_df = df[df['Restaurant_Name'] == restaurant]
+                    pos_rev = restaurant_df['POS_Revenue_Amount'].sum() if 'POS_Revenue_Amount' in df.columns else 0
+                    online_rev = restaurant_df['ONLINE_Revenue_Amount'].sum() if 'ONLINE_Revenue_Amount' in df.columns else 0
+                    kiosk_rev = restaurant_df['KIOSK_Revenue_Amount'].sum() if 'KIOSK_Revenue_Amount' in df.columns else 0
+                    
+                    top_data.append({
+                        'Restaurant': restaurant,
+                        'Total Revenue': revenue,
+                        'POS Revenue': pos_rev,
+                        'Online Revenue': online_rev,
+                        'Kiosk Revenue': kiosk_rev
+                    })
+                
+                top_df = pd.DataFrame(top_data).sort_values('Total Revenue', ascending=False)
+                
+                st.dataframe(
+                    top_df.style.format({
+                        'Total Revenue': '${:,.0f}',
+                        'POS Revenue': '${:,.0f}',
+                        'Online Revenue': '${:,.0f}',
+                        'Kiosk Revenue': '${:,.0f}'
+                    }).background_gradient(subset=['Total Revenue'], cmap='Greens'),
+                    use_container_width=True,
+                    height=300
+                )
+            else:
+                st.info("No restaurants with revenue over $50K")
+        
+        with insight_tabs[1]:  # At Risk
+            at_risk_all = categories['At Risk'] + categories['Low Performers']
+            if at_risk_all:
+                st.markdown(f"**{len(at_risk_all)} restaurants with revenue < $10K:**")
+                
+                # Create detailed dataframe for at-risk restaurants
+                risk_data = []
+                for restaurant in at_risk_all:
+                    revenue = restaurant_revenues[restaurant]
+                    # Determine risk level
+                    if revenue < 3000:
+                        risk_level = "Critical"
+                    else:
+                        risk_level = "Warning"
+                    
+                    risk_data.append({
+                        'Restaurant': restaurant,
+                        'Revenue': revenue,
+                        'Risk Level': risk_level
+                    })
+                
+                risk_df = pd.DataFrame(risk_data).sort_values('Revenue', ascending=True)
+                
+                st.dataframe(
+                    risk_df.style.format({
+                        'Revenue': '${:,.0f}'
+                    }).background_gradient(subset=['Revenue'], cmap='Reds_r'),
+                    use_container_width=True,
+                    height=300
+                )
+                
+                # Alert for critical restaurants
+                critical = [r for r in risk_data if r['Risk Level'] == 'Critical']
+                if critical:
+                    st.error(f"⚠️ **{len(critical)} restaurants in critical state (< $3K revenue)**")
+            else:
+                st.success("No restaurants at risk")
+        
+        with insight_tabs[2]:  # Channel Leaders
+            st.markdown(f"**Channel Performance Leaders in {selected_month}:**")
+            
+            if 'POS_Revenue_Amount' in df.columns and 'ONLINE_Revenue_Amount' in df.columns:
+                # Find top performers by channel
+                pos_leader = df.groupby('Restaurant_Name')['POS_Revenue_Amount'].sum().idxmax()
+                online_leader = df.groupby('Restaurant_Name')['ONLINE_Revenue_Amount'].sum().idxmax()
+                
+                channel_leaders = []
+                
+                # POS leader
+                pos_max = df.groupby('Restaurant_Name')['POS_Revenue_Amount'].sum().max()
+                channel_leaders.append({
+                    'Channel': 'POS',
+                    'Leader': pos_leader,
+                    'Revenue': pos_max
+                })
+                
+                # Online leader
+                online_max = df.groupby('Restaurant_Name')['ONLINE_Revenue_Amount'].sum().max()
+                channel_leaders.append({
+                    'Channel': 'Online',
+                    'Leader': online_leader,
+                    'Revenue': online_max
+                })
+                
+                # Kiosk leader if available
+                if 'KIOSK_Revenue_Amount' in df.columns:
+                    kiosk_leader = df.groupby('Restaurant_Name')['KIOSK_Revenue_Amount'].sum().idxmax()
+                    kiosk_max = df.groupby('Restaurant_Name')['KIOSK_Revenue_Amount'].sum().max()
+                    channel_leaders.append({
+                        'Channel': 'Kiosk',
+                        'Leader': kiosk_leader,
+                        'Revenue': kiosk_max
+                    })
+                
+                leaders_df = pd.DataFrame(channel_leaders)
+                
+                st.dataframe(
+                    leaders_df.style.format({
+                        'Revenue': '${:,.0f}'
+                    }).background_gradient(subset=['Revenue'], cmap='Blues'),
+                    use_container_width=True
+                )
+                
+                # Online adoption metrics
+                st.markdown("**Online Channel Adoption:**")
+                online_active = df[df['ONLINE_Revenue_Amount'] > 0]['Restaurant_Name'].nunique()
+                total_active = df[df['Amount_Collected'] > 0]['Restaurant_Name'].nunique()
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Online Active", f"{online_active} restaurants")
+                with col2:
+                    adoption_rate = (online_active / total_active * 100) if total_active > 0 else 0
+                    st.metric("Adoption Rate", f"{adoption_rate:.1f}%")
+            else:
+                st.info("Channel data not available")
+        
+        with insight_tabs[3]:  # Zero Revenue
+            if categories['Zero Revenue']:
+                st.markdown(f"**{len(categories['Zero Revenue'])} restaurants with zero revenue:**")
+                
+                # Create list of zero revenue restaurants
+                zero_df = pd.DataFrame({
+                    'Restaurant': categories['Zero Revenue'],
+                    'Status': ['Inactive'] * len(categories['Zero Revenue'])
+                })
+                
+                st.dataframe(
+                    zero_df,
+                    use_container_width=True,
+                    height=min(300, len(zero_df) * 35 + 50)
+                )
+                
+                st.warning(f"💰 **Potential revenue loss from {len(categories['Zero Revenue'])} inactive restaurants**")
+            else:
+                st.success("All restaurants generated revenue")
+    
+    elif 'Month' in df.columns and df['Month'].nunique() > 1:
         mom_result = calculate_mom_metrics(df)
         if mom_result:
             pivot_df, mom_changes = mom_result
@@ -746,7 +1005,7 @@ with search_col2:
         else:
             st.info("Add more months of data to see month-over-month insights")
     else:
-        st.info("Month-over-month insights require multiple months of data")
+        st.info("No month data available for analysis")
 
 st.markdown("---")
 
