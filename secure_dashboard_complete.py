@@ -1302,9 +1302,25 @@ with tab7:
                 )
             
             with col3:
-                # Count restaurants with revenue under $3K in current month (including zero revenue)
-                low_revenue_curr = (comparison_data['curr_month'] < 3000).sum()
-                low_revenue_prev = (comparison_data['prev_month'] < 3000).sum()
+                # Count restaurants with revenue under $3K in current month from actual month data
+                # Filter df for current month only
+                curr_month_df = df[df['Month'] == curr_month]
+                if not curr_month_df.empty:
+                    # Group by restaurant to get their total for the month
+                    curr_month_totals = curr_month_df.groupby('Restaurant_Name')['Amount_Collected'].sum()
+                    low_revenue_curr = (curr_month_totals < 3000).sum()
+                else:
+                    # Fallback to comparison data if month filter doesn't work
+                    low_revenue_curr = (comparison_data['curr_month'] < 3000).sum()
+                
+                # Previous month for comparison
+                prev_month_df = df[df['Month'] == prev_month] 
+                if not prev_month_df.empty:
+                    prev_month_totals = prev_month_df.groupby('Restaurant_Name')['Amount_Collected'].sum()
+                    low_revenue_prev = (prev_month_totals < 3000).sum()
+                else:
+                    low_revenue_prev = (comparison_data['prev_month'] < 3000).sum()
+                    
                 low_revenue_change = low_revenue_curr - low_revenue_prev
                 st.metric(
                     f"Under $3K in {curr_month.split()[0]}",
