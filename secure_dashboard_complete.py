@@ -1292,13 +1292,13 @@ with tab7:
                 )
             
             with col2:
-                active_prev = (comparison_data['prev_month'] > 0).sum()
+                # Total restaurants in the dataset for current month
+                total_restaurants = len(comparison_data['curr_month'])
                 active_curr = (comparison_data['curr_month'] > 0).sum()
-                active_change = active_curr - active_prev
                 st.metric(
-                    "Active Restaurants",
-                    f"{active_curr}",
-                    f"{active_change:+d}"
+                    f"Total Restaurants",
+                    f"{total_restaurants}",
+                    f"{active_curr} active"
                 )
             
             with col3:
@@ -1325,11 +1325,13 @@ with tab7:
                 )
             
             with col5:
-                avg_change_pct = comparison_data['percentage'].mean()
+                # New entrants and churned restaurants
+                new_entrants = ((comparison_data['prev_month'] == 0) & (comparison_data['curr_month'] > 0)).sum()
+                churned = ((comparison_data['prev_month'] > 0) & (comparison_data['curr_month'] == 0)).sum()
                 st.metric(
-                    "Avg Change %",
-                    f"{avg_change_pct:.1f}%",
-                    "overall average"
+                    "New/Churned",
+                    f"{new_entrants} new / {churned} lost",
+                    f"in {curr_month.split()[0]}"
                 )
             
             st.markdown("---")
