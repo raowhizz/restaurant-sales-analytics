@@ -271,7 +271,7 @@ with col1:
     period_option = st.selectbox(
         "Analysis Period",
         ["All Months", "Last 6 Months", "Last 3 Months", "Last 2 Months", "Single Month", "Custom Range"],
-        index=0,
+        index=4,  # Default to "Single Month"
         help="Choose which months to include in the analysis"
     )
 
