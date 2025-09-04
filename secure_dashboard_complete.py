@@ -894,15 +894,18 @@ with tab1:
         if 'Restaurant_Name' in df.columns and 'Amount_Collected' in df.columns:
             top_restaurants = df.groupby('Restaurant_Name')['Amount_Collected'].sum().sort_values(ascending=False).head(10)
             
+            # Reverse the order so highest is at top
+            top_restaurants_reversed = top_restaurants.iloc[::-1]
+            
             fig_top = px.bar(
-                x=top_restaurants.values,
-                y=top_restaurants.index,
+                x=top_restaurants_reversed.values,
+                y=top_restaurants_reversed.index,
                 orientation='h',
                 title='Top 10 Restaurants by Revenue',
                 labels={'x': 'Revenue ($)', 'y': 'Restaurant'},
-                color=top_restaurants.values,
+                color=top_restaurants_reversed.values,
                 color_continuous_scale='Viridis',
-                text=[f'${x:,.0f}' for x in top_restaurants.values]
+                text=[f'${x:,.0f}' for x in top_restaurants_reversed.values]
             )
             fig_top.update_traces(textposition='auto', textfont_size=12)
             fig_top.update_layout(
