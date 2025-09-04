@@ -1317,11 +1317,10 @@ with tab7:
                 active_mask = (comparison_data['curr_month'] > 0) | (comparison_data['prev_month'] > 0)
                 growing = (active_mask & (comparison_data['percentage'] > 0)).sum()
                 declining = (active_mask & (comparison_data['percentage'] < 0)).sum()
-                stable = (active_mask & (comparison_data['percentage'] == 0)).sum()
                 st.metric(
                     "Growing/Declining",
                     f"{growing} ↑ / {declining} ↓",
-                    f"({stable} stable)"
+                    "restaurants"
                 )
             
             with col5:
