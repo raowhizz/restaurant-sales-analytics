@@ -1292,9 +1292,15 @@ with tab7:
                 )
             
             with col2:
-                # Total restaurants in the dataset for current month
-                total_restaurants = len(comparison_data['curr_month'])
-                active_curr = (comparison_data['curr_month'] > 0).sum()
+                # Total restaurants in the actual current month data
+                curr_month_df = df[df['Month'] == curr_month]
+                if not curr_month_df.empty:
+                    total_restaurants = curr_month_df['Restaurant_Name'].nunique()
+                    active_curr = curr_month_df[curr_month_df['Amount_Collected'] > 0]['Restaurant_Name'].nunique()
+                else:
+                    # Fallback to comparison data
+                    total_restaurants = len(comparison_data['curr_month'])
+                    active_curr = (comparison_data['curr_month'] > 0).sum()
                 st.metric(
                     f"Total Restaurants",
                     f"{total_restaurants}",
@@ -1329,10 +1335,32 @@ with tab7:
                 )
             
             with col4:
-                # Only count restaurants that are active in at least one period
-                active_mask = (comparison_data['curr_month'] > 0) | (comparison_data['prev_month'] > 0)
-                growing = (active_mask & (comparison_data['percentage'] > 0)).sum()
-                declining = (active_mask & (comparison_data['percentage'] < 0)).sum()
+                # Calculate growing/declining based on restaurants that exist in both months
+                curr_month_df = df[df['Month'] == curr_month]
+                prev_month_df = df[df['Month'] == prev_month]
+                
+                if not curr_month_df.empty and not prev_month_df.empty:
+                    curr_totals = curr_month_df.groupby('Restaurant_Name')['Amount_Collected'].sum()
+                    prev_totals = prev_month_df.groupby('Restaurant_Name')['Amount_Collected'].sum()
+                    
+                    # Get restaurants that exist in both months
+                    common_restaurants = set(curr_totals.index) & set(prev_totals.index)
+                    
+                    growing = 0
+                    declining = 0
+                    for restaurant in common_restaurants:
+                        curr_val = curr_totals.get(restaurant, 0)
+                        prev_val = prev_totals.get(restaurant, 0)
+                        if curr_val > prev_val:
+                            growing += 1
+                        elif curr_val < prev_val:
+                            declining += 1
+                else:
+                    # Fallback to comparison data
+                    active_mask = (comparison_data['curr_month'] > 0) | (comparison_data['prev_month'] > 0)
+                    growing = (active_mask & (comparison_data['percentage'] > 0)).sum()
+                    declining = (active_mask & (comparison_data['percentage'] < 0)).sum()
+                    
                 st.metric(
                     "Growing/Declining",
                     f"{growing} ↑ / {declining} ↓",
@@ -1340,9 +1368,21 @@ with tab7:
                 )
             
             with col5:
-                # New entrants and churned restaurants
-                new_entrants = ((comparison_data['prev_month'] == 0) & (comparison_data['curr_month'] > 0)).sum()
-                churned = ((comparison_data['prev_month'] > 0) & (comparison_data['curr_month'] == 0)).sum()
+                # New entrants and churned restaurants based on actual month data
+                curr_month_df = df[df['Month'] == curr_month]
+                prev_month_df = df[df['Month'] == prev_month]
+                
+                if not curr_month_df.empty and not prev_month_df.empty:
+                    curr_restaurants = set(curr_month_df[curr_month_df['Amount_Collected'] > 0]['Restaurant_Name'].unique())
+                    prev_restaurants = set(prev_month_df[prev_month_df['Amount_Collected'] > 0]['Restaurant_Name'].unique())
+                    
+                    new_entrants = len(curr_restaurants - prev_restaurants)
+                    churned = len(prev_restaurants - curr_restaurants)
+                else:
+                    # Fallback to comparison data
+                    new_entrants = ((comparison_data['prev_month'] == 0) & (comparison_data['curr_month'] > 0)).sum()
+                    churned = ((comparison_data['prev_month'] > 0) & (comparison_data['curr_month'] == 0)).sum()
+                    
                 st.metric(
                     "New/Churned",
                     f"{new_entrants} new / {churned} lost",
