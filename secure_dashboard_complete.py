@@ -1074,12 +1074,11 @@ with col5:
 st.markdown("---")
 
 # Create tabs for different analyses
-tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+tab1, tab2, tab3, tab4, tab6, tab7 = st.tabs([
     "📈 Revenue Overview", 
     "🏪 Restaurant Analysis", 
     "📱 Channel Performance",
     "📊 Revenue Tiers",
-    "📉 Trends & Insights",
     "🌐 Online Ordering Analysis",
     "📊 Month-over-Month Analysis"
 ])
@@ -1405,46 +1404,46 @@ with tab4:
             )
             st.plotly_chart(fig_tier_revenue, use_container_width=True)
 
-with tab5:
-    st.header("Trends & Advanced Insights")
-    
-    # Statistical summary
-    st.subheader("Statistical Summary")
-    
-    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-    if 'Amount_Collected' in numeric_cols:
-        stats_df = df[['Amount_Collected']].describe()
-        
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("Mean Revenue", f"${stats_df.loc['mean', 'Amount_Collected']:,.2f}")
-        with col2:
-            st.metric("Median Revenue", f"${stats_df.loc['50%', 'Amount_Collected']:,.2f}")
-        with col3:
-            st.metric("Std Deviation", f"${stats_df.loc['std', 'Amount_Collected']:,.2f}")
-        with col4:
-            q75 = stats_df.loc['75%', 'Amount_Collected']
-            q25 = stats_df.loc['25%', 'Amount_Collected']
-            iqr = q75 - q25
-            st.metric("IQR", f"${iqr:,.2f}")
-    
-    # Revenue distribution histogram
-    if 'Amount_Collected' in df.columns:
-        st.subheader("Revenue Distribution")
-        
-        fig_dist = px.histogram(
-            df,
-            x='Amount_Collected',
-            nbins=30,
-            title='Revenue Distribution Across All Restaurants',
-            labels={'Amount_Collected': 'Revenue ($)', 'count': 'Frequency'},
-            color_discrete_sequence=['#1f77b4']
-        )
-        fig_dist.add_vline(x=df['Amount_Collected'].mean(), line_dash="dash", 
-                         line_color="red", annotation_text="Mean")
-        fig_dist.add_vline(x=df['Amount_Collected'].median(), line_dash="dash", 
-                         line_color="green", annotation_text="Median")
-        st.plotly_chart(fig_dist, use_container_width=True)
+# with tab5:
+#     st.header("Trends & Advanced Insights")
+#     
+#     # Statistical summary
+#     st.subheader("Statistical Summary")
+#     
+#     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+#     if 'Amount_Collected' in numeric_cols:
+#         stats_df = df[['Amount_Collected']].describe()
+#         
+#         col1, col2, col3, col4 = st.columns(4)
+#         with col1:
+#             st.metric("Mean Revenue", f"${stats_df.loc['mean', 'Amount_Collected']:,.2f}")
+#         with col2:
+#             st.metric("Median Revenue", f"${stats_df.loc['50%', 'Amount_Collected']:,.2f}")
+#         with col3:
+#             st.metric("Std Deviation", f"${stats_df.loc['std', 'Amount_Collected']:,.2f}")
+#         with col4:
+#             q75 = stats_df.loc['75%', 'Amount_Collected']
+#             q25 = stats_df.loc['25%', 'Amount_Collected']
+#             iqr = q75 - q25
+#             st.metric("IQR", f"${iqr:,.2f}")
+#     
+#     # Revenue distribution histogram
+#     if 'Amount_Collected' in df.columns:
+#         st.subheader("Revenue Distribution")
+#         
+#         fig_dist = px.histogram(
+#             df,
+#             x='Amount_Collected',
+#             nbins=30,
+#             title='Revenue Distribution Across All Restaurants',
+#             labels={'Amount_Collected': 'Revenue ($)', 'count': 'Frequency'},
+#             color_discrete_sequence=['#1f77b4']
+#         )
+#         fig_dist.add_vline(x=df['Amount_Collected'].mean(), line_dash="dash", 
+#                          line_color="red", annotation_text="Mean")
+#         fig_dist.add_vline(x=df['Amount_Collected'].median(), line_dash="dash", 
+#                          line_color="green", annotation_text="Median")
+#         st.plotly_chart(fig_dist, use_container_width=True)
 
 with tab6:
     st.header("🌐 Online Ordering Analysis")
