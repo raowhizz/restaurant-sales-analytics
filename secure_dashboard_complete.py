@@ -1330,6 +1330,13 @@ with tab4:
         tier_counts = df['Revenue_Tier'].value_counts()
         tier_revenue = df.groupby('Revenue_Tier')['Amount_Collected'].sum()
         
+        # Define the desired order from highest to lowest
+        tier_order = ['100K+', '100K', '50K', '20K', '10K', '1K', 'Zero']
+        
+        # Reindex tier_counts and tier_revenue to follow the desired order
+        tier_counts = tier_counts.reindex(tier_order, fill_value=0)
+        tier_revenue = tier_revenue.reindex(tier_order, fill_value=0)
+        
         col1, col2 = st.columns(2)
         
         with col1:
@@ -1341,6 +1348,8 @@ with tab4:
                 color=tier_counts.values,
                 color_continuous_scale='Teal'
             )
+            # Ensure the order is maintained
+            fig_tier_count.update_xaxes(categoryorder='array', categoryarray=tier_order)
             st.plotly_chart(fig_tier_count, use_container_width=True)
         
         with col2:
@@ -1352,6 +1361,8 @@ with tab4:
                 color=tier_revenue.values,
                 color_continuous_scale='Oranges'
             )
+            # Ensure the order is maintained
+            fig_tier_revenue.update_xaxes(categoryorder='array', categoryarray=tier_order)
             st.plotly_chart(fig_tier_revenue, use_container_width=True)
 
 with tab5:
