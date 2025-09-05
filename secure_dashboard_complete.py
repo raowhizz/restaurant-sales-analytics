@@ -1340,29 +1340,55 @@ with tab4:
         col1, col2 = st.columns(2)
         
         with col1:
+            # Create a DataFrame to ensure proper display
+            tier_df = pd.DataFrame({
+                'Tier': tier_counts.index,
+                'Count': tier_counts.values
+            })
+            
             fig_tier_count = px.bar(
-                x=tier_counts.index,
-                y=tier_counts.values,
+                tier_df,
+                x='Tier',
+                y='Count',
                 title='Number of Restaurants by Revenue Tier',
-                labels={'x': 'Revenue Tier', 'y': 'Number of Restaurants'},
-                color=tier_counts.values,
+                labels={'Tier': 'Revenue Tier', 'Count': 'Number of Restaurants'},
+                color='Count',
                 color_continuous_scale='Teal'
             )
-            # Ensure the order is maintained
-            fig_tier_count.update_xaxes(categoryorder='array', categoryarray=tier_order)
+            # Ensure the order is maintained and all categories are shown
+            fig_tier_count.update_xaxes(
+                categoryorder='array', 
+                categoryarray=tier_order,
+                tickmode='array',
+                tickvals=tier_order,
+                ticktext=tier_order
+            )
             st.plotly_chart(fig_tier_count, use_container_width=True)
         
         with col2:
+            # Create a DataFrame to ensure proper display
+            revenue_df = pd.DataFrame({
+                'Tier': tier_revenue.index,
+                'Revenue': tier_revenue.values
+            })
+            
             fig_tier_revenue = px.bar(
-                x=tier_revenue.index,
-                y=tier_revenue.values,
+                revenue_df,
+                x='Tier',
+                y='Revenue',
                 title='Total Revenue by Tier',
-                labels={'x': 'Revenue Tier', 'y': 'Total Revenue ($)'},
-                color=tier_revenue.values,
+                labels={'Tier': 'Revenue Tier', 'Revenue': 'Total Revenue ($)'},
+                color='Revenue',
                 color_continuous_scale='Oranges'
             )
-            # Ensure the order is maintained
-            fig_tier_revenue.update_xaxes(categoryorder='array', categoryarray=tier_order)
+            # Ensure the order is maintained and all categories are shown
+            fig_tier_revenue.update_xaxes(
+                categoryorder='array', 
+                categoryarray=tier_order,
+                tickmode='array',
+                tickvals=tier_order,
+                ticktext=tier_order
+            )
             st.plotly_chart(fig_tier_revenue, use_container_width=True)
 
 with tab5:
