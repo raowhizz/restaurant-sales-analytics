@@ -1333,17 +1333,17 @@ with tab4:
         # Define the desired order from highest to lowest
         tier_order = ['100K+', '50K+ to 100K', '20K+ to 50K', '10K+ to 20K', '1K+ to 10K', '0+ to 1K', 'Zero']
         
-        # Reindex tier_counts and tier_revenue to follow the desired order
-        tier_counts = tier_counts.reindex(tier_order, fill_value=0)
-        tier_revenue = tier_revenue.reindex(tier_order, fill_value=0)
+        # Create complete DataFrames with all tiers, filling missing ones with 0
+        tier_counts_dict = {tier: tier_counts.get(tier, 0) for tier in tier_order}
+        tier_revenue_dict = {tier: tier_revenue.get(tier, 0) for tier in tier_order}
         
         col1, col2 = st.columns(2)
         
         with col1:
-            # Create a DataFrame to ensure proper display
+            # Create a DataFrame with all tiers
             tier_df = pd.DataFrame({
-                'Tier': tier_counts.index,
-                'Count': tier_counts.values
+                'Tier': tier_order,
+                'Count': [tier_counts_dict[tier] for tier in tier_order]
             })
             
             fig_tier_count = px.bar(
@@ -1366,10 +1366,10 @@ with tab4:
             st.plotly_chart(fig_tier_count, use_container_width=True)
         
         with col2:
-            # Create a DataFrame to ensure proper display
+            # Create a DataFrame with all tiers
             revenue_df = pd.DataFrame({
-                'Tier': tier_revenue.index,
-                'Revenue': tier_revenue.values
+                'Tier': tier_order,
+                'Revenue': [tier_revenue_dict[tier] for tier in tier_order]
             })
             
             fig_tier_revenue = px.bar(
