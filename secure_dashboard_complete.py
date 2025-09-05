@@ -1327,15 +1327,19 @@ with tab4:
     
     if 'Revenue_Tier' in df.columns:
         # Tier distribution
-        tier_counts = df['Revenue_Tier'].value_counts()
-        tier_revenue = df.groupby('Revenue_Tier')['Amount_Collected'].sum()
+        tier_counts_raw = df['Revenue_Tier'].value_counts()
+        tier_revenue_raw = df.groupby('Revenue_Tier')['Amount_Collected'].sum()
         
         # Define the desired order from highest to lowest
         tier_order = ['100K+', '50K+ to 100K', '20K+ to 50K', '10K+ to 20K', '1K+ to 10K', '0+ to 1K', 'Zero']
         
-        # Create complete DataFrames with all tiers, filling missing ones with 0
-        tier_counts_dict = {tier: tier_counts.get(tier, 0) for tier in tier_order}
-        tier_revenue_dict = {tier: tier_revenue.get(tier, 0) for tier in tier_order}
+        # Convert to dictionary for easier lookup
+        tier_counts_dict = tier_counts_raw.to_dict() if not tier_counts_raw.empty else {}
+        tier_revenue_dict_raw = tier_revenue_raw.to_dict() if not tier_revenue_raw.empty else {}
+        
+        # Create complete dictionaries with all tiers, filling missing ones with 0
+        tier_counts_complete = {tier: tier_counts_dict.get(tier, 0) for tier in tier_order}
+        tier_revenue_complete = {tier: tier_revenue_dict_raw.get(tier, 0) for tier in tier_order}
         
         col1, col2 = st.columns(2)
         
@@ -1343,7 +1347,7 @@ with tab4:
             # Create a DataFrame with all tiers
             tier_df = pd.DataFrame({
                 'Tier': tier_order,
-                'Count': [tier_counts_dict[tier] for tier in tier_order]
+                'Count': [tier_counts_complete[tier] for tier in tier_order]
             })
             
             fig_tier_count = px.bar(
@@ -1369,7 +1373,7 @@ with tab4:
             # Create a DataFrame with all tiers
             revenue_df = pd.DataFrame({
                 'Tier': tier_order,
-                'Revenue': [tier_revenue_dict[tier] for tier in tier_order]
+                'Revenue': [tier_revenue_complete[tier] for tier in tier_order]
             })
             
             fig_tier_revenue = px.bar(
