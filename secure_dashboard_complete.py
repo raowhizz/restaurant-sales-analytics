@@ -1350,6 +1350,9 @@ with tab4:
                 'Count': [tier_counts_complete[tier] for tier in tier_order]
             })
             
+            # Debug: Show the data being plotted
+            st.write("Debug - Tier counts:", tier_counts_complete)
+            
             fig_tier_count = px.bar(
                 tier_df,
                 x='Tier',
@@ -1357,16 +1360,18 @@ with tab4:
                 title='Number of Restaurants by Revenue Tier',
                 labels={'Tier': 'Revenue Tier', 'Count': 'Number of Restaurants'},
                 color='Count',
-                color_continuous_scale='Teal'
+                color_continuous_scale='Teal',
+                text='Count'  # Show count on bars
             )
+            fig_tier_count.update_traces(textposition='outside')
             # Ensure the order is maintained and all categories are shown
             fig_tier_count.update_xaxes(
                 categoryorder='array', 
-                categoryarray=tier_order,
-                tickmode='array',
-                tickvals=tier_order,
-                ticktext=tier_order
+                categoryarray=tier_order
             )
+            # Force y-axis to start from 0 and show appropriate range
+            max_count = max(tier_counts_complete.values()) if tier_counts_complete.values() else 100
+            fig_tier_count.update_yaxes(range=[0, max_count * 1.1])
             st.plotly_chart(fig_tier_count, use_container_width=True)
         
         with col2:
