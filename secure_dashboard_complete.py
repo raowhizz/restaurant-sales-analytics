@@ -1333,6 +1333,10 @@ with tab4:
         # Define the desired order from highest to lowest
         tier_order = ['100K+', '50K+ to 100K', '20K+ to 50K', '10K+ to 20K', '1K+ to 10K', '0+ to 1K', 'Zero']
         
+        # Debug: Show what tiers are actually in the data
+        st.write("Debug - Actual tiers found in data:", list(tier_counts_raw.index) if not tier_counts_raw.empty else "No tiers found")
+        st.write("Debug - Sample revenue values:", df['Amount_Collected'].describe())
+        
         # Convert to dictionary for easier lookup
         tier_counts_dict = tier_counts_raw.to_dict() if not tier_counts_raw.empty else {}
         tier_revenue_dict_raw = tier_revenue_raw.to_dict() if not tier_revenue_raw.empty else {}
