@@ -251,15 +251,15 @@ def categorize_revenue_tier(amount):
     if pd.isna(amount) or amount <= 0:
         return 'Zero'
     elif amount <= 1000:
-        return '1K'
+        return '0+ to 1K'
     elif amount <= 10000:
-        return '10K'
+        return '1K+ to 10K'
     elif amount <= 20000:
-        return '20K'
+        return '10K+ to 20K'
     elif amount <= 50000:
-        return '50K'
+        return '20K+ to 50K'
     elif amount <= 100000:
-        return '100K'
+        return '50K+ to 100K'
     else:
         return '100K+'
 
@@ -1331,7 +1331,7 @@ with tab4:
         tier_revenue = df.groupby('Revenue_Tier')['Amount_Collected'].sum()
         
         # Define the desired order from highest to lowest
-        tier_order = ['100K+', '100K', '50K', '20K', '10K', '1K', 'Zero']
+        tier_order = ['100K+', '50K+ to 100K', '20K+ to 50K', '10K+ to 20K', '1K+ to 10K', '0+ to 1K', 'Zero']
         
         # Reindex tier_counts and tier_revenue to follow the desired order
         tier_counts = tier_counts.reindex(tier_order, fill_value=0)
