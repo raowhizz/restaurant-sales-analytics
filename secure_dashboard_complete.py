@@ -22,7 +22,7 @@ warnings.filterwarnings('ignore')
 # Version Information
 __version__ = "2.1.0"
 __release_date__ = "2025-10-01"
-__cache_version__ = "v4"  # Increment this to force cache refresh
+__cache_version__ = "v5"  # Increment this to force cache refresh
 
 # Page configuration
 st.set_page_config(
@@ -210,17 +210,54 @@ def load_from_gdrive(file_id, month_year, month_name):
     try:
         response = requests.get(url, timeout=30)
         if response.status_code == 200:
-            df = pd.read_excel(BytesIO(response.content))
+            try:
+                # Try to read the Excel file
+                df = pd.read_excel(BytesIO(response.content))
+                
+                # Debug: Check if dataframe is empty
+                if df.empty:
+                    return None, f"Warning: {month_name} file appears to be empty"
+                
+                # Debug: Check columns
+                if len(df.columns) == 0:
+                    return None, f"Warning: {month_name} file has no columns"
+                    
+                # Debug: Log initial shape and columns
+                print(f"Debug {month_name}: Shape={df.shape}, Columns={list(df.columns)}")
+            except Exception as read_error:
+                return None, f"Error reading {month_name} Excel data: {str(read_error)}"
             
-            # Rename columns for consistency
+            # Rename columns for consistency - handle case variations
             column_mapping = {
                 'Restaurant ID': 'Restaurant_ID',  # New column from September onwards
+                'restaurant id': 'Restaurant_ID',
                 'Restaurant Name': 'Restaurant_Name',
+                'restaurant name': 'Restaurant_Name',
                 'Amount Collected': 'Amount_Collected',
+                'amount collected': 'Amount_Collected',
                 'POS Revenue%': 'POS_Revenue_PCT',
-                'KIOSK Revenue%': 'KIOSK_Revenue_PCT',
-                'ONLINE Revenue%': 'ONLINE_Revenue_PCT'
+                'pos revenue%': 'POS_Revenue_PCT',
+                'KIOSK Revenue%': 'KIOSK_Revenue_PCT', 
+                'kiosk revenue%': 'KIOSK_Revenue_PCT',
+                'ONLINE Revenue%': 'ONLINE_Revenue_PCT',
+                'online revenue%': 'ONLINE_Revenue_PCT'
             }
+            
+            # Also try to handle columns with slightly different names
+            for col in df.columns:
+                col_lower = col.lower().strip()
+                if 'restaurant' in col_lower and 'name' in col_lower:
+                    column_mapping[col] = 'Restaurant_Name'
+                elif 'restaurant' in col_lower and 'id' in col_lower:
+                    column_mapping[col] = 'Restaurant_ID'
+                elif 'amount' in col_lower and 'collect' in col_lower:
+                    column_mapping[col] = 'Amount_Collected'
+                elif 'pos' in col_lower and 'revenue' in col_lower:
+                    column_mapping[col] = 'POS_Revenue_PCT'
+                elif 'kiosk' in col_lower and 'revenue' in col_lower:
+                    column_mapping[col] = 'KIOSK_Revenue_PCT'
+                elif 'online' in col_lower and 'revenue' in col_lower:
+                    column_mapping[col] = 'ONLINE_Revenue_PCT'
             
             df = df.rename(columns=column_mapping)
             
@@ -265,11 +302,21 @@ def load_from_gdrive(file_id, month_year, month_name):
             # Add revenue tier categorization
             df['Revenue_Tier'] = df['Amount_Collected'].apply(categorize_revenue_tier)
             
+            # Final validation
+            if 'Restaurant_Name' not in df.columns:
+                return None, f"Error: {month_name} file missing 'Restaurant Name' column. Available columns: {list(df.columns)}"
+            
+            # Check if we have any valid data
+            valid_rows = df[df['Amount_Collected'] > 0]
+            print(f"Debug {month_name}: Valid rows with revenue > 0: {len(valid_rows)}")
+            
             return df, None
         else:
-            return None, f"Failed to download {month_name} data (Status: {response.status_code})"
+            return None, f"Failed to download {month_name} data (HTTP Status: {response.status_code})"
+    except requests.exceptions.RequestException as req_error:
+        return None, f"Network error loading {month_name}: {str(req_error)}"
     except Exception as e:
-        return None, f"Error loading {month_name}: {str(e)}"
+        return None, f"Unexpected error loading {month_name}: {str(e)}"
 
 def categorize_revenue_tier(amount):
     """Categorize amount into revenue tiers"""
