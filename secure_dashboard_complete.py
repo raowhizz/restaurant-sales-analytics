@@ -65,6 +65,10 @@ GDRIVE_FILES = {
     '2025-08': {
         'id': '17XHQw7ZD_dV6-_8wJqHkMvoFgZcv3Mvm',
         'name': 'August 2025'
+    },
+    '2025-09': {
+        'id': '14rFulXE7BHRsOqOA2vIX94T-ObdUuhcB',
+        'name': 'September 2025'
     }
 }
 
@@ -1325,19 +1329,33 @@ with tab4:
     st.header("Revenue Tier Analysis")
     
     if 'Revenue_Tier' in df.columns:
-        # Tier distribution
-        tier_counts_raw = df['Revenue_Tier'].value_counts()
-        tier_revenue_raw = df.groupby('Revenue_Tier')['Amount_Collected'].sum()
-        
         # Define the desired order from highest to lowest
         tier_order = ['100K+', '50K+ to 100K', '20K+ to 50K', '10K+ to 20K', '1K+ to 10K', '0+ to 1K', 'Zero']
         
-        # Force recalculation of revenue tiers with new naming
-        df['Revenue_Tier'] = df['Amount_Collected'].apply(categorize_revenue_tier)
-        
-        # Recalculate tier distribution with updated tiers
-        tier_counts_raw = df['Revenue_Tier'].value_counts()
-        tier_revenue_raw = df.groupby('Revenue_Tier')['Amount_Collected'].sum()
+        # Check if we need to aggregate by restaurant (multi-month analysis)
+        if period_option in ["All Months", "Last 6 Months", "Last 3 Months", "Last 2 Months", "Custom Range"]:
+            # For multi-month analysis, aggregate by restaurant name first
+            if 'Restaurant_Name' in df.columns:
+                restaurant_totals = df.groupby('Restaurant_Name')['Amount_Collected'].sum().reset_index()
+                restaurant_totals['Revenue_Tier'] = restaurant_totals['Amount_Collected'].apply(categorize_revenue_tier)
+                
+                # Use aggregated restaurant data for tier analysis
+                tier_counts_raw = restaurant_totals['Revenue_Tier'].value_counts()
+                tier_revenue_raw = restaurant_totals.groupby('Revenue_Tier')['Amount_Collected'].sum()
+                
+                st.info(f"📊 Analysis Mode: Aggregated by restaurant across {period_text}")
+            else:
+                # Fallback if Restaurant_Name column missing
+                df['Revenue_Tier'] = df['Amount_Collected'].apply(categorize_revenue_tier)
+                tier_counts_raw = df['Revenue_Tier'].value_counts()
+                tier_revenue_raw = df.groupby('Revenue_Tier')['Amount_Collected'].sum()
+                st.warning("Restaurant_Name column not found - showing monthly entries instead of restaurant aggregation")
+        else:
+            # For single month analysis, use individual entries
+            df['Revenue_Tier'] = df['Amount_Collected'].apply(categorize_revenue_tier)
+            tier_counts_raw = df['Revenue_Tier'].value_counts()
+            tier_revenue_raw = df.groupby('Revenue_Tier')['Amount_Collected'].sum()
+            st.info(f"📊 Analysis Mode: Individual restaurant entries for {period_text}")
         
         # Convert to dictionary for easier lookup
         tier_counts_dict = tier_counts_raw.to_dict() if not tier_counts_raw.empty else {}
