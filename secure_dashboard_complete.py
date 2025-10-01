@@ -20,8 +20,9 @@ from scipy import stats
 warnings.filterwarnings('ignore')
 
 # Version Information
-__version__ = "2.0.0"
-__release_date__ = "2025-09-03"
+__version__ = "2.1.0"
+__release_date__ = "2025-10-01"
+__cache_version__ = "v3"  # Increment this to force cache refresh
 
 # Page configuration
 st.set_page_config(
@@ -312,13 +313,13 @@ with col2:
 with col3:
     # Display selected period info
     if period_option == "All Months":
-        st.info("📊 Analyzing: All 8 months (January to August 2025)")
+        st.info("📊 Analyzing: All 9 months (January to September 2025)")
     elif period_option == "Last 6 Months":
-        st.info("📊 Analyzing: Last 6 months (March to August 2025)")
+        st.info("📊 Analyzing: Last 6 months (April to September 2025)")
     elif period_option == "Last 3 Months":
-        st.info("📊 Analyzing: Last 3 months (June to August 2025)")
+        st.info("📊 Analyzing: Last 3 months (July to September 2025)")
     elif period_option == "Last 2 Months":
-        st.info("📊 Analyzing: Last 2 months (July to August 2025)")
+        st.info("📊 Analyzing: Last 2 months (August to September 2025)")
     elif period_option == "Custom Range":
         if selected_months_range:
             st.info(f"📊 Analyzing: {', '.join(selected_months_range)}")
@@ -331,7 +332,7 @@ st.markdown("---")
 
 # Load all data with progress bar
 @st.cache_data(show_spinner=False)
-def load_all_data(period_selection, selected_key=None, selected_range=None):
+def load_all_data(period_selection, selected_key=None, selected_range=None, cache_version=__cache_version__):
     """Load Excel files from Google Drive based on period selection"""
     all_data = []
     errors = []
@@ -486,7 +487,7 @@ def calculate_mom_metrics(df):
     
     # Sort columns chronologically
     month_order = ['January 2025', 'February 2025', 'March 2025', 'April 2025', 
-                   'May 2025', 'June 2025', 'July 2025', 'August 2025']
+                   'May 2025', 'June 2025', 'July 2025', 'August 2025', 'September 2025']
     available_months = [m for m in month_order if m in pivot_df.columns]
     pivot_df = pivot_df[available_months]
     
