@@ -22,7 +22,7 @@ warnings.filterwarnings('ignore')
 # Version Information
 __version__ = "2.1.0"
 __release_date__ = "2025-10-01"
-__cache_version__ = "v3"  # Increment this to force cache refresh
+__cache_version__ = "v4"  # Increment this to force cache refresh
 
 # Page configuration
 st.set_page_config(
@@ -237,17 +237,27 @@ def load_from_gdrive(file_id, month_year, month_name):
                 # For months without Restaurant ID, use name as key
                 df['Restaurant_Key'] = 'NO_ID_' + df['Restaurant_Name'].fillna('')
             
-            # Clean percentage columns
+            # Clean percentage columns with improved type handling
             for col in ['POS_Revenue_PCT', 'KIOSK_Revenue_PCT', 'ONLINE_Revenue_PCT']:
                 if col in df.columns:
-                    # Handle percentage values that might be strings with %
-                    df[col] = pd.to_numeric(
-                        df[col].astype(str).str.replace('%', ''), 
-                        errors='coerce'
-                    ).fillna(0)
+                    # Convert to string first to handle mixed types
+                    col_str = df[col].astype(str)
+                    # Remove percentage signs and any non-numeric characters except decimal points
+                    col_str = col_str.str.replace('%', '').str.replace(',', '')
+                    # Handle special cases like 'nan', 'None', empty strings
+                    col_str = col_str.replace(['nan', 'None', '', 'NaN'], '0')
+                    # Convert to numeric, replacing any remaining non-numeric values with 0
+                    df[col] = pd.to_numeric(col_str, errors='coerce').fillna(0)
             
-            # Calculate revenue amounts
-            df['Amount_Collected'] = pd.to_numeric(df['Amount_Collected'], errors='coerce').fillna(0)
+            # Calculate revenue amounts with improved type handling
+            if 'Amount_Collected' in df.columns:
+                # Handle Amount_Collected column similarly
+                amount_str = df['Amount_Collected'].astype(str)
+                amount_str = amount_str.str.replace(',', '').str.replace('$', '')
+                amount_str = amount_str.replace(['nan', 'None', '', 'NaN'], '0')
+                df['Amount_Collected'] = pd.to_numeric(amount_str, errors='coerce').fillna(0)
+            else:
+                df['Amount_Collected'] = 0
             df['POS_Revenue_Amount'] = df['Amount_Collected'] * df['POS_Revenue_PCT'] / 100
             df['KIOSK_Revenue_Amount'] = df['Amount_Collected'] * df['KIOSK_Revenue_PCT'] / 100
             df['ONLINE_Revenue_Amount'] = df['Amount_Collected'] * df['ONLINE_Revenue_PCT'] / 100
