@@ -22,7 +22,7 @@ warnings.filterwarnings('ignore')
 # Version Information
 __version__ = "2.1.0"
 __release_date__ = "2025-10-01"
-__cache_version__ = "v5"  # Increment this to force cache refresh
+__cache_version__ = "v6"  # Increment this to force cache refresh
 
 # Page configuration
 st.set_page_config(
@@ -200,16 +200,34 @@ with col2:
             del st.session_state[key]
         st.rerun()
 
+# Test connection to Google Sheets
+def test_google_connection():
+    """Test if we can connect to Google services"""
+    try:
+        test_url = "https://docs.google.com"
+        response = requests.get(test_url, timeout=5)
+        return response.status_code == 200
+    except:
+        return False
+
 # Function to load data from Google Drive
 @st.cache_data(show_spinner=False)
 def load_from_gdrive(file_id, month_year, month_name):
     """Load Excel file from Google Sheets"""
-    # Export Google Sheets as Excel format
-    url = f"https://docs.google.com/spreadsheets/d/{file_id}/export?format=xlsx"
+    # Try multiple URL formats
+    urls_to_try = [
+        f"https://docs.google.com/spreadsheets/d/{file_id}/export?format=xlsx",
+        f"https://docs.google.com/spreadsheets/d/{file_id}/export?format=xlsx&gid=0",
+        f"https://drive.google.com/uc?export=download&id={file_id}"
+    ]
     
-    try:
-        response = requests.get(url, timeout=30)
-        if response.status_code == 200:
+    last_error = None
+    for url_idx, url in enumerate(urls_to_try):
+        try:
+            # Allow redirects and increase timeout
+            response = requests.get(url, timeout=60, allow_redirects=True, 
+                                  headers={'User-Agent': 'Mozilla/5.0'})
+            if response.status_code == 200:
             try:
                 # Try to read the Excel file
                 df = pd.read_excel(BytesIO(response.content))
@@ -311,12 +329,24 @@ def load_from_gdrive(file_id, month_year, month_name):
             print(f"Debug {month_name}: Valid rows with revenue > 0: {len(valid_rows)}")
             
             return df, None
-        else:
-            return None, f"Failed to download {month_name} data (HTTP Status: {response.status_code})"
-    except requests.exceptions.RequestException as req_error:
-        return None, f"Network error loading {month_name}: {str(req_error)}"
-    except Exception as e:
-        return None, f"Unexpected error loading {month_name}: {str(e)}"
+            elif url_idx == len(urls_to_try) - 1:
+                # Last URL failed
+                return None, f"Failed to download {month_name} data (HTTP Status: {response.status_code})"
+            else:
+                # Try next URL
+                continue
+        except requests.exceptions.RequestException as req_error:
+            last_error = f"Network error loading {month_name}: {str(req_error)}"
+            if url_idx == len(urls_to_try) - 1:
+                return None, last_error
+            continue
+        except Exception as e:
+            last_error = f"Unexpected error loading {month_name}: {str(e)}"
+            if url_idx == len(urls_to_try) - 1:
+                return None, last_error
+            continue
+    
+    return None, last_error if last_error else f"Failed to load {month_name} after trying all URL formats"
 
 def categorize_revenue_tier(amount):
     """Categorize amount into revenue tiers"""
@@ -485,6 +515,10 @@ def consolidate_restaurant_data(df):
         df['Restaurant_Name_Display'] = df['Restaurant_Name_Display'].fillna(df['Restaurant_Name'])
     
     return df
+
+# Test connection first
+if not test_google_connection():
+    st.warning("⚠️ Unable to connect to Google services. This might be a network issue or firewall blocking access.")
 
 # Load data
 st.info("📊 Loading data from Google Sheets...")
