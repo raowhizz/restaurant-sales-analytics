@@ -22,7 +22,7 @@ warnings.filterwarnings('ignore')
 # Version Information
 __version__ = "2.1.0"
 __release_date__ = "2025-10-01"
-__cache_version__ = "v6"  # Increment this to force cache refresh
+__cache_version__ = "v7"  # Increment this to force cache refresh
 
 # Page configuration
 st.set_page_config(
@@ -242,6 +242,10 @@ def load_from_gdrive(file_id, month_year, month_name):
                         
                     # Debug: Log initial shape and columns
                     print(f"Debug {month_name}: Shape={df.shape}, Columns={list(df.columns)}")
+                    # Debug: Log data types of first few rows
+                    if not df.empty:
+                        print(f"Debug {month_name}: Data types: {df.dtypes.to_dict()}")
+                        print(f"Debug {month_name}: First row sample: {df.iloc[0].to_dict()}")
                 except Exception as read_error:
                     return None, f"Error reading {month_name} Excel data: {str(read_error)}"
             
@@ -313,12 +317,24 @@ def load_from_gdrive(file_id, month_year, month_name):
                     df['Amount_Collected'] = pd.to_numeric(amount_str, errors='coerce').fillna(0)
                 else:
                     df['Amount_Collected'] = 0
-                df['POS_Revenue_Amount'] = df['Amount_Collected'] * df['POS_Revenue_PCT'] / 100
-                df['KIOSK_Revenue_Amount'] = df['Amount_Collected'] * df['KIOSK_Revenue_PCT'] / 100
-                df['ONLINE_Revenue_Amount'] = df['Amount_Collected'] * df['ONLINE_Revenue_PCT'] / 100
+                # Calculate revenue amounts with error handling
+                try:
+                    df['POS_Revenue_Amount'] = pd.to_numeric(df['Amount_Collected'], errors='coerce').fillna(0) * pd.to_numeric(df['POS_Revenue_PCT'], errors='coerce').fillna(0) / 100
+                    df['KIOSK_Revenue_Amount'] = pd.to_numeric(df['Amount_Collected'], errors='coerce').fillna(0) * pd.to_numeric(df['KIOSK_Revenue_PCT'], errors='coerce').fillna(0) / 100
+                    df['ONLINE_Revenue_Amount'] = pd.to_numeric(df['Amount_Collected'], errors='coerce').fillna(0) * pd.to_numeric(df['ONLINE_Revenue_PCT'], errors='coerce').fillna(0) / 100
+                except Exception as calc_error:
+                    print(f"Error calculating revenue amounts for {month_name}: {str(calc_error)}")
+                    # Set default values if calculation fails
+                    df['POS_Revenue_Amount'] = 0
+                    df['KIOSK_Revenue_Amount'] = 0
+                    df['ONLINE_Revenue_Amount'] = 0
                 
-                # Add revenue tier categorization
-                df['Revenue_Tier'] = df['Amount_Collected'].apply(categorize_revenue_tier)
+                # Add revenue tier categorization with error handling
+                try:
+                    df['Revenue_Tier'] = pd.to_numeric(df['Amount_Collected'], errors='coerce').fillna(0).apply(categorize_revenue_tier)
+                except Exception as tier_error:
+                    print(f"Error categorizing revenue tiers for {month_name}: {str(tier_error)}")
+                    df['Revenue_Tier'] = 'Unknown'
                 
                 # Final validation
                 if 'Restaurant_Name' not in df.columns:
