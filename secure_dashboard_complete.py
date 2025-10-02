@@ -22,7 +22,7 @@ warnings.filterwarnings('ignore')
 # Version Information
 __version__ = "2.1.0"
 __release_date__ = "2025-10-01"
-__cache_version__ = "v7"  # Increment this to force cache refresh
+__cache_version__ = "v8"  # Increment this to force cache refresh
 
 # Page configuration
 st.set_page_config(
@@ -267,7 +267,9 @@ def load_from_gdrive(file_id, month_year, month_name):
                 
                 # Also try to handle columns with slightly different names
                 for col in df.columns:
-                    col_lower = col.lower().strip()
+                    # Convert column name to string first, then lowercase
+                    col_str = str(col) if col is not None else ''
+                    col_lower = col_str.lower().strip()
                     if 'restaurant' in col_lower and 'name' in col_lower:
                         column_mapping[col] = 'Restaurant_Name'
                     elif 'restaurant' in col_lower and 'id' in col_lower:
@@ -289,32 +291,52 @@ def load_from_gdrive(file_id, month_year, month_name):
                 
                 # Create a unique restaurant identifier
                 # Use Restaurant ID if available (Sept onwards), otherwise use Restaurant Name
-                if 'Restaurant_ID' in df.columns and df['Restaurant_ID'].notna().any():
-                    # Create composite key: ID_Name for consistency tracking
-                    df['Restaurant_Key'] = df['Restaurant_ID'].fillna('NO_ID') + '_' + df['Restaurant_Name'].fillna('')
-                else:
-                    # For months without Restaurant ID, use name as key
-                    df['Restaurant_Key'] = 'NO_ID_' + df['Restaurant_Name'].fillna('')
+                try:
+                    if 'Restaurant_ID' in df.columns and df['Restaurant_ID'].notna().any():
+                        # Create composite key: ID_Name for consistency tracking
+                        # Convert both to string to handle any data type
+                        restaurant_ids = df['Restaurant_ID'].apply(lambda x: str(x) if x is not None else 'NO_ID')
+                        restaurant_names = df['Restaurant_Name'].apply(lambda x: str(x) if x is not None else '')
+                        df['Restaurant_Key'] = restaurant_ids + '_' + restaurant_names
+                    else:
+                        # For months without Restaurant ID, use name as key
+                        restaurant_names = df['Restaurant_Name'].apply(lambda x: str(x) if x is not None else '')
+                        df['Restaurant_Key'] = 'NO_ID_' + restaurant_names
+                except Exception as key_error:
+                    print(f"Error creating Restaurant_Key in {month_name}: {str(key_error)}")
+                    df['Restaurant_Key'] = 'UNKNOWN_KEY'
                 
                 # Clean percentage columns with improved type handling
                 for col in ['POS_Revenue_PCT', 'KIOSK_Revenue_PCT', 'ONLINE_Revenue_PCT']:
                     if col in df.columns:
-                        # Convert to string first to handle mixed types
-                        col_str = df[col].astype(str)
-                        # Remove percentage signs and any non-numeric characters except decimal points
-                        col_str = col_str.str.replace('%', '').str.replace(',', '')
-                        # Handle special cases like 'nan', 'None', empty strings
-                        col_str = col_str.replace(['nan', 'None', '', 'NaN'], '0')
-                        # Convert to numeric, replacing any remaining non-numeric values with 0
-                        df[col] = pd.to_numeric(col_str, errors='coerce').fillna(0)
+                        try:
+                            # Convert to string first to handle mixed types (including datetime)
+                            col_values = df[col].apply(lambda x: str(x) if x is not None else '0')
+                            # Remove percentage signs and any non-numeric characters except decimal points
+                            col_values = col_values.str.replace('%', '').str.replace(',', '')
+                            # Handle special cases like 'nan', 'None', empty strings, datetime strings
+                            col_values = col_values.replace(['nan', 'None', '', 'NaN', 'nat', 'NaT'], '0')
+                            # Remove any non-numeric characters except decimal points and negative signs
+                            col_values = col_values.str.replace(r'[^0-9.-]', '', regex=True)
+                            # Convert to numeric, replacing any remaining non-numeric values with 0
+                            df[col] = pd.to_numeric(col_values, errors='coerce').fillna(0)
+                        except Exception as col_error:
+                            print(f"Error processing {col} in {month_name}: {str(col_error)}")
+                            df[col] = 0
                 
                 # Calculate revenue amounts with improved type handling
                 if 'Amount_Collected' in df.columns:
-                    # Handle Amount_Collected column similarly
-                    amount_str = df['Amount_Collected'].astype(str)
-                    amount_str = amount_str.str.replace(',', '').str.replace('$', '')
-                    amount_str = amount_str.replace(['nan', 'None', '', 'NaN'], '0')
-                    df['Amount_Collected'] = pd.to_numeric(amount_str, errors='coerce').fillna(0)
+                    try:
+                        # Handle Amount_Collected column with robust type conversion
+                        amount_values = df['Amount_Collected'].apply(lambda x: str(x) if x is not None else '0')
+                        amount_values = amount_values.str.replace(',', '').str.replace('$', '')
+                        amount_values = amount_values.replace(['nan', 'None', '', 'NaN', 'nat', 'NaT'], '0')
+                        # Remove any non-numeric characters except decimal points and negative signs
+                        amount_values = amount_values.str.replace(r'[^0-9.-]', '', regex=True)
+                        df['Amount_Collected'] = pd.to_numeric(amount_values, errors='coerce').fillna(0)
+                    except Exception as amount_error:
+                        print(f"Error processing Amount_Collected in {month_name}: {str(amount_error)}")
+                        df['Amount_Collected'] = 0
                 else:
                     df['Amount_Collected'] = 0
                 # Calculate revenue amounts with error handling
