@@ -228,107 +228,107 @@ def load_from_gdrive(file_id, month_year, month_name):
             response = requests.get(url, timeout=60, allow_redirects=True, 
                                   headers={'User-Agent': 'Mozilla/5.0'})
             if response.status_code == 200:
-            try:
-                # Try to read the Excel file
-                df = pd.read_excel(BytesIO(response.content))
+                try:
+                    # Try to read the Excel file
+                    df = pd.read_excel(BytesIO(response.content))
                 
-                # Debug: Check if dataframe is empty
-                if df.empty:
-                    return None, f"Warning: {month_name} file appears to be empty"
-                
-                # Debug: Check columns
-                if len(df.columns) == 0:
-                    return None, f"Warning: {month_name} file has no columns"
+                    # Debug: Check if dataframe is empty
+                    if df.empty:
+                        return None, f"Warning: {month_name} file appears to be empty"
                     
-                # Debug: Log initial shape and columns
-                print(f"Debug {month_name}: Shape={df.shape}, Columns={list(df.columns)}")
-            except Exception as read_error:
-                return None, f"Error reading {month_name} Excel data: {str(read_error)}"
+                    # Debug: Check columns
+                    if len(df.columns) == 0:
+                        return None, f"Warning: {month_name} file has no columns"
+                        
+                    # Debug: Log initial shape and columns
+                    print(f"Debug {month_name}: Shape={df.shape}, Columns={list(df.columns)}")
+                except Exception as read_error:
+                    return None, f"Error reading {month_name} Excel data: {str(read_error)}"
             
-            # Rename columns for consistency - handle case variations
-            column_mapping = {
-                'Restaurant ID': 'Restaurant_ID',  # New column from September onwards
-                'restaurant id': 'Restaurant_ID',
-                'Restaurant Name': 'Restaurant_Name',
-                'restaurant name': 'Restaurant_Name',
-                'Amount Collected': 'Amount_Collected',
-                'amount collected': 'Amount_Collected',
-                'POS Revenue%': 'POS_Revenue_PCT',
-                'pos revenue%': 'POS_Revenue_PCT',
-                'KIOSK Revenue%': 'KIOSK_Revenue_PCT', 
-                'kiosk revenue%': 'KIOSK_Revenue_PCT',
-                'ONLINE Revenue%': 'ONLINE_Revenue_PCT',
-                'online revenue%': 'ONLINE_Revenue_PCT'
-            }
-            
-            # Also try to handle columns with slightly different names
-            for col in df.columns:
-                col_lower = col.lower().strip()
-                if 'restaurant' in col_lower and 'name' in col_lower:
-                    column_mapping[col] = 'Restaurant_Name'
-                elif 'restaurant' in col_lower and 'id' in col_lower:
-                    column_mapping[col] = 'Restaurant_ID'
-                elif 'amount' in col_lower and 'collect' in col_lower:
-                    column_mapping[col] = 'Amount_Collected'
-                elif 'pos' in col_lower and 'revenue' in col_lower:
-                    column_mapping[col] = 'POS_Revenue_PCT'
-                elif 'kiosk' in col_lower and 'revenue' in col_lower:
-                    column_mapping[col] = 'KIOSK_Revenue_PCT'
-                elif 'online' in col_lower and 'revenue' in col_lower:
-                    column_mapping[col] = 'ONLINE_Revenue_PCT'
-            
-            df = df.rename(columns=column_mapping)
-            
-            # Add month column
-            df['Month_Year'] = month_year
-            df['Month'] = month_name
-            
-            # Create a unique restaurant identifier
-            # Use Restaurant ID if available (Sept onwards), otherwise use Restaurant Name
-            if 'Restaurant_ID' in df.columns and df['Restaurant_ID'].notna().any():
-                # Create composite key: ID_Name for consistency tracking
-                df['Restaurant_Key'] = df['Restaurant_ID'].fillna('NO_ID') + '_' + df['Restaurant_Name'].fillna('')
-            else:
-                # For months without Restaurant ID, use name as key
-                df['Restaurant_Key'] = 'NO_ID_' + df['Restaurant_Name'].fillna('')
-            
-            # Clean percentage columns with improved type handling
-            for col in ['POS_Revenue_PCT', 'KIOSK_Revenue_PCT', 'ONLINE_Revenue_PCT']:
-                if col in df.columns:
-                    # Convert to string first to handle mixed types
-                    col_str = df[col].astype(str)
-                    # Remove percentage signs and any non-numeric characters except decimal points
-                    col_str = col_str.str.replace('%', '').str.replace(',', '')
-                    # Handle special cases like 'nan', 'None', empty strings
-                    col_str = col_str.replace(['nan', 'None', '', 'NaN'], '0')
-                    # Convert to numeric, replacing any remaining non-numeric values with 0
-                    df[col] = pd.to_numeric(col_str, errors='coerce').fillna(0)
-            
-            # Calculate revenue amounts with improved type handling
-            if 'Amount_Collected' in df.columns:
-                # Handle Amount_Collected column similarly
-                amount_str = df['Amount_Collected'].astype(str)
-                amount_str = amount_str.str.replace(',', '').str.replace('$', '')
-                amount_str = amount_str.replace(['nan', 'None', '', 'NaN'], '0')
-                df['Amount_Collected'] = pd.to_numeric(amount_str, errors='coerce').fillna(0)
-            else:
-                df['Amount_Collected'] = 0
-            df['POS_Revenue_Amount'] = df['Amount_Collected'] * df['POS_Revenue_PCT'] / 100
-            df['KIOSK_Revenue_Amount'] = df['Amount_Collected'] * df['KIOSK_Revenue_PCT'] / 100
-            df['ONLINE_Revenue_Amount'] = df['Amount_Collected'] * df['ONLINE_Revenue_PCT'] / 100
-            
-            # Add revenue tier categorization
-            df['Revenue_Tier'] = df['Amount_Collected'].apply(categorize_revenue_tier)
-            
-            # Final validation
-            if 'Restaurant_Name' not in df.columns:
-                return None, f"Error: {month_name} file missing 'Restaurant Name' column. Available columns: {list(df.columns)}"
-            
-            # Check if we have any valid data
-            valid_rows = df[df['Amount_Collected'] > 0]
-            print(f"Debug {month_name}: Valid rows with revenue > 0: {len(valid_rows)}")
-            
-            return df, None
+                # Rename columns for consistency - handle case variations
+                column_mapping = {
+                    'Restaurant ID': 'Restaurant_ID',  # New column from September onwards
+                    'restaurant id': 'Restaurant_ID',
+                    'Restaurant Name': 'Restaurant_Name',
+                    'restaurant name': 'Restaurant_Name',
+                    'Amount Collected': 'Amount_Collected',
+                    'amount collected': 'Amount_Collected',
+                    'POS Revenue%': 'POS_Revenue_PCT',
+                    'pos revenue%': 'POS_Revenue_PCT',
+                    'KIOSK Revenue%': 'KIOSK_Revenue_PCT', 
+                    'kiosk revenue%': 'KIOSK_Revenue_PCT',
+                    'ONLINE Revenue%': 'ONLINE_Revenue_PCT',
+                    'online revenue%': 'ONLINE_Revenue_PCT'
+                }
+                
+                # Also try to handle columns with slightly different names
+                for col in df.columns:
+                    col_lower = col.lower().strip()
+                    if 'restaurant' in col_lower and 'name' in col_lower:
+                        column_mapping[col] = 'Restaurant_Name'
+                    elif 'restaurant' in col_lower and 'id' in col_lower:
+                        column_mapping[col] = 'Restaurant_ID'
+                    elif 'amount' in col_lower and 'collect' in col_lower:
+                        column_mapping[col] = 'Amount_Collected'
+                    elif 'pos' in col_lower and 'revenue' in col_lower:
+                        column_mapping[col] = 'POS_Revenue_PCT'
+                    elif 'kiosk' in col_lower and 'revenue' in col_lower:
+                        column_mapping[col] = 'KIOSK_Revenue_PCT'
+                    elif 'online' in col_lower and 'revenue' in col_lower:
+                        column_mapping[col] = 'ONLINE_Revenue_PCT'
+                
+                df = df.rename(columns=column_mapping)
+                
+                # Add month column
+                df['Month_Year'] = month_year
+                df['Month'] = month_name
+                
+                # Create a unique restaurant identifier
+                # Use Restaurant ID if available (Sept onwards), otherwise use Restaurant Name
+                if 'Restaurant_ID' in df.columns and df['Restaurant_ID'].notna().any():
+                    # Create composite key: ID_Name for consistency tracking
+                    df['Restaurant_Key'] = df['Restaurant_ID'].fillna('NO_ID') + '_' + df['Restaurant_Name'].fillna('')
+                else:
+                    # For months without Restaurant ID, use name as key
+                    df['Restaurant_Key'] = 'NO_ID_' + df['Restaurant_Name'].fillna('')
+                
+                # Clean percentage columns with improved type handling
+                for col in ['POS_Revenue_PCT', 'KIOSK_Revenue_PCT', 'ONLINE_Revenue_PCT']:
+                    if col in df.columns:
+                        # Convert to string first to handle mixed types
+                        col_str = df[col].astype(str)
+                        # Remove percentage signs and any non-numeric characters except decimal points
+                        col_str = col_str.str.replace('%', '').str.replace(',', '')
+                        # Handle special cases like 'nan', 'None', empty strings
+                        col_str = col_str.replace(['nan', 'None', '', 'NaN'], '0')
+                        # Convert to numeric, replacing any remaining non-numeric values with 0
+                        df[col] = pd.to_numeric(col_str, errors='coerce').fillna(0)
+                
+                # Calculate revenue amounts with improved type handling
+                if 'Amount_Collected' in df.columns:
+                    # Handle Amount_Collected column similarly
+                    amount_str = df['Amount_Collected'].astype(str)
+                    amount_str = amount_str.str.replace(',', '').str.replace('$', '')
+                    amount_str = amount_str.replace(['nan', 'None', '', 'NaN'], '0')
+                    df['Amount_Collected'] = pd.to_numeric(amount_str, errors='coerce').fillna(0)
+                else:
+                    df['Amount_Collected'] = 0
+                df['POS_Revenue_Amount'] = df['Amount_Collected'] * df['POS_Revenue_PCT'] / 100
+                df['KIOSK_Revenue_Amount'] = df['Amount_Collected'] * df['KIOSK_Revenue_PCT'] / 100
+                df['ONLINE_Revenue_Amount'] = df['Amount_Collected'] * df['ONLINE_Revenue_PCT'] / 100
+                
+                # Add revenue tier categorization
+                df['Revenue_Tier'] = df['Amount_Collected'].apply(categorize_revenue_tier)
+                
+                # Final validation
+                if 'Restaurant_Name' not in df.columns:
+                    return None, f"Error: {month_name} file missing 'Restaurant Name' column. Available columns: {list(df.columns)}"
+                
+                # Check if we have any valid data
+                valid_rows = df[df['Amount_Collected'] > 0]
+                print(f"Debug {month_name}: Valid rows with revenue > 0: {len(valid_rows)}")
+                
+                return df, None
             elif url_idx == len(urls_to_try) - 1:
                 # Last URL failed
                 return None, f"Failed to download {month_name} data (HTTP Status: {response.status_code})"
