@@ -22,7 +22,7 @@ warnings.filterwarnings('ignore')
 # Version Information
 __version__ = "2.1.0"
 __release_date__ = "2025-10-01"
-__cache_version__ = "v10"  # Fixed KeyError issues
+__cache_version__ = "v11"  # Fixed restaurant matching across months
 
 # Page configuration
 st.set_page_config(
@@ -531,17 +531,24 @@ def load_all_data(period_selection, selected_key=None, selected_range=None, cach
 # Function to consolidate restaurant data using ID when available
 def consolidate_restaurant_data(df):
     """
-    Consolidate restaurant data using Restaurant ID when available.
-    If a restaurant has the same ID but different names across months,
-    use the most recent name.
+    Consolidate restaurant data handling mixed months with/without Restaurant ID.
+    
+    Strategy:
+    1. For months with Restaurant ID (Sept+): Use Restaurant_Name as the master key
+    2. For months without Restaurant ID (Jan-Aug): Also use Restaurant_Name as key
+    3. This ensures consistent matching across all months
     """
     if 'Restaurant_Key' not in df.columns:
         return df
     
-    # For restaurants with IDs, get the most recent name
+    # Create a unified Restaurant_Key that works across all months
+    # Use Restaurant_Name as the consistent identifier
+    df['Restaurant_Unified_Key'] = df['Restaurant_Name'].fillna('UNKNOWN')
+    
+    # For restaurants with IDs in September, get the most recent name
     if 'Restaurant_ID' in df.columns:
         # Find restaurants with actual IDs (not NO_ID)
-        df_with_ids = df[df['Restaurant_ID'].notna()].copy()
+        df_with_ids = df[df['Restaurant_ID'].notna() & (df['Restaurant_ID'] != 'NO_ID')].copy()
         
         if not df_with_ids.empty:
             # Get the most recent name for each Restaurant ID
@@ -549,10 +556,18 @@ def consolidate_restaurant_data(df):
                 'Restaurant_Name': 'last'
             }).reset_index()
             
-            # Update Restaurant_Name for all records with matching IDs
-            for _, row in latest_names.iterrows():
-                mask = df['Restaurant_ID'] == row['Restaurant_ID']
-                df.loc[mask, 'Restaurant_Name_Display'] = row['Restaurant_Name']
+            # Create a mapping from Restaurant_Name to the most recent name for that ID
+            id_to_latest_name = dict(zip(latest_names['Restaurant_ID'], latest_names['Restaurant_Name']))
+            
+            # Update Restaurant_Name_Display for all records
+            df['Restaurant_Name_Display'] = df['Restaurant_Name']
+            
+            # For records with Restaurant_ID, update to use the latest name for that ID
+            for rid, latest_name in id_to_latest_name.items():
+                mask = df['Restaurant_ID'] == rid
+                df.loc[mask, 'Restaurant_Name_Display'] = latest_name
+                # Also update the unified key to use the latest name
+                df.loc[mask, 'Restaurant_Unified_Key'] = latest_name
         else:
             df['Restaurant_Name_Display'] = df['Restaurant_Name']
     else:
@@ -597,8 +612,8 @@ st.success(f"✅ Loaded {len(df):,} records from {df['Month'].nunique()} months"
 # Data Summary
 if 'Month' in df.columns:
     months_included = sorted(df['Month'].unique())
-    # Count unique restaurants using Restaurant_Key for accurate count
-    unique_restaurants = df['Restaurant_Key'].nunique() if 'Restaurant_Key' in df.columns else df['Restaurant_Name'].nunique()
+    # Count unique restaurants using Restaurant_Unified_Key for accurate count
+    unique_restaurants = df['Restaurant_Unified_Key'].nunique() if 'Restaurant_Unified_Key' in df.columns else df['Restaurant_Name'].nunique()
     data_summary = f"**Current Analysis**: {', '.join(months_included)} | **Total Records**: {len(df):,} | **Unique Restaurants**: {unique_restaurants:,}"
     st.markdown(f"<div style='background-color: #e8f4f8; padding: 10px; border-radius: 5px; margin-bottom: 20px;'>{data_summary}</div>", unsafe_allow_html=True)
 
@@ -608,8 +623,8 @@ def calculate_mom_metrics(df):
     if 'Month' not in df.columns or df['Month'].nunique() < 2:
         return None
     
-    # Use Restaurant_Key for grouping to handle name changes
-    group_key = 'Restaurant_Key' if 'Restaurant_Key' in df.columns else 'Restaurant_Name'
+    # Use Restaurant_Unified_Key for consistent grouping across months
+    group_key = 'Restaurant_Unified_Key' if 'Restaurant_Unified_Key' in df.columns else 'Restaurant_Name'
     
     # Create aggregated data first
     agg_df = df.groupby([group_key, 'Month']).agg({
@@ -774,8 +789,8 @@ def generate_single_month_insights(df, selected_month):
     
     # Basic metrics
     total_revenue = df['Amount_Collected'].sum()
-    # Use Restaurant_Key for accurate unique count
-    group_key = 'Restaurant_Key' if 'Restaurant_Key' in df.columns else 'Restaurant_Name'
+    # Use Restaurant_Unified_Key for accurate unique count
+    group_key = 'Restaurant_Unified_Key' if 'Restaurant_Unified_Key' in df.columns else 'Restaurant_Name'
     total_restaurants = df[group_key].nunique()
     active_restaurants = df[df['Amount_Collected'] > 0][group_key].nunique()
     zero_revenue = total_restaurants - active_restaurants
@@ -783,7 +798,7 @@ def generate_single_month_insights(df, selected_month):
     # Revenue distribution insights
     if total_restaurants > 0:
         # Calculate revenue concentration
-        group_key = 'Restaurant_Key' if 'Restaurant_Key' in df.columns else 'Restaurant_Name'
+        group_key = 'Restaurant_Unified_Key' if 'Restaurant_Unified_Key' in df.columns else 'Restaurant_Name'
         restaurant_revenues = df.groupby(group_key)['Amount_Collected'].sum().sort_values(ascending=False)
         top_10_pct_count = max(1, int(len(restaurant_revenues) * 0.1))
         top_10_pct_revenue = restaurant_revenues.head(top_10_pct_count).sum()
@@ -809,7 +824,7 @@ def generate_single_month_insights(df, selected_month):
         insights.append(f"📱 {dominant_channel} channel dominates with {dominant_pct:.1f}% of revenue")
         
         # Online adoption
-        group_key = 'Restaurant_Key' if 'Restaurant_Key' in df.columns else 'Restaurant_Name'
+        group_key = 'Restaurant_Unified_Key' if 'Restaurant_Unified_Key' in df.columns else 'Restaurant_Name'
         online_active = df[df['ONLINE_Revenue_Amount'] > 0][group_key].nunique()
         online_adoption = (online_active / active_restaurants * 100) if active_restaurants > 0 else 0
         insights.append(f"🌐 Online adoption at {online_adoption:.1f}% ({online_active} of {active_restaurants} restaurants)")
@@ -843,7 +858,7 @@ def categorize_single_month_performance(df):
     }
     
     # Group by restaurant to get total revenue
-    group_key = 'Restaurant_Key' if 'Restaurant_Key' in df.columns else 'Restaurant_Name'
+    group_key = 'Restaurant_Unified_Key' if 'Restaurant_Unified_Key' in df.columns else 'Restaurant_Name'
     display_key = 'Restaurant_Name_Display' if 'Restaurant_Name_Display' in df.columns else 'Restaurant_Name'
     
     # Get display names for each restaurant key
@@ -1285,7 +1300,7 @@ with col1:
     st.metric("Total Revenue", display_revenue)
 
 with col2:
-    group_key = 'Restaurant_Key' if 'Restaurant_Key' in df.columns else 'Restaurant_Name'
+    group_key = 'Restaurant_Unified_Key' if 'Restaurant_Unified_Key' in df.columns else 'Restaurant_Name'
     num_restaurants = df[group_key].nunique() if group_key in df.columns else 0
     st.metric("Total Restaurants", f"{num_restaurants:,}")
 
@@ -1328,7 +1343,7 @@ with tab1:
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         # Count unique restaurants with revenue > 0
-        group_key = 'Restaurant_Key' if 'Restaurant_Key' in df.columns else 'Restaurant_Name'
+        group_key = 'Restaurant_Unified_Key' if 'Restaurant_Unified_Key' in df.columns else 'Restaurant_Name'
         if 'Amount_Collected' in df.columns and group_key in df.columns:
             active_df = df[df['Amount_Collected'] > 0]
             total_active = active_df[group_key].nunique()
@@ -1388,7 +1403,7 @@ with tab1:
     
     with col2:
         # Top 10 restaurants by revenue
-        group_key = 'Restaurant_Key' if 'Restaurant_Key' in df.columns else 'Restaurant_Name'
+        group_key = 'Restaurant_Unified_Key' if 'Restaurant_Unified_Key' in df.columns else 'Restaurant_Name'
         display_key = 'Restaurant_Name_Display' if 'Restaurant_Name_Display' in df.columns else 'Restaurant_Name'
         
         if group_key in df.columns and 'Amount_Collected' in df.columns:
