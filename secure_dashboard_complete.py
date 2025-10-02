@@ -22,7 +22,7 @@ warnings.filterwarnings('ignore')
 # Version Information
 __version__ = "2.1.0"
 __release_date__ = "2025-10-01"
-__cache_version__ = "v9_" + str(int(pd.Timestamp.now().timestamp()))  # Force cache refresh with timestamp
+__cache_version__ = "v10"  # Fixed KeyError issues
 
 # Page configuration
 st.set_page_config(
@@ -866,7 +866,13 @@ def categorize_single_month_performance(df):
         else:
             categories['Top Performers'].append(restaurant_name)
     
-    return categories, restaurant_revenues
+    # Create a revenue mapping by display name for easy lookup
+    display_name_revenues = {}
+    for restaurant_key, revenue in restaurant_revenues.items():
+        display_name = restaurant_names_map.get(restaurant_key, restaurant_key)
+        display_name_revenues[display_name] = revenue
+    
+    return categories, display_name_revenues
 
 # Search Bar and AI Insights Section
 st.markdown("## 🔍 Search & Insights")
@@ -919,9 +925,18 @@ with search_col2:
                 # Create detailed dataframe for top performers
                 top_data = []
                 for restaurant in categories['Top Performers']:
-                    revenue = restaurant_revenues[restaurant]
-                    # Get channel breakdown if available
-                    restaurant_df = df[df['Restaurant_Name'] == restaurant]
+                    # Safe lookup with error handling
+                    revenue = restaurant_revenues.get(restaurant, 0)
+                    if revenue == 0:
+                        continue  # Skip if no revenue found for this restaurant
+                    
+                    # Get channel breakdown if available - use both display name and Restaurant_Key for lookup
+                    display_key = 'Restaurant_Name_Display' if 'Restaurant_Name_Display' in df.columns else 'Restaurant_Name'
+                    restaurant_df = df[df[display_key] == restaurant]
+                    
+                    # Fallback: try with Restaurant_Name if no rows found
+                    if restaurant_df.empty and 'Restaurant_Name' in df.columns:
+                        restaurant_df = df[df['Restaurant_Name'] == restaurant]
                     pos_rev = restaurant_df['POS_Revenue_Amount'].sum() if 'POS_Revenue_Amount' in df.columns else 0
                     online_rev = restaurant_df['ONLINE_Revenue_Amount'].sum() if 'ONLINE_Revenue_Amount' in df.columns else 0
                     kiosk_rev = restaurant_df['KIOSK_Revenue_Amount'].sum() if 'KIOSK_Revenue_Amount' in df.columns else 0
@@ -957,7 +972,9 @@ with search_col2:
                 # Create detailed dataframe for at-risk restaurants
                 risk_data = []
                 for restaurant in at_risk_all:
-                    revenue = restaurant_revenues[restaurant]
+                    revenue = restaurant_revenues.get(restaurant, 0)
+                    if revenue == 0:
+                        continue  # Skip if no revenue found
                     # Determine risk level
                     if revenue < 3000:
                         risk_level = "Critical"
