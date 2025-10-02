@@ -22,7 +22,7 @@ warnings.filterwarnings('ignore')
 # Version Information
 __version__ = "2.1.0"
 __release_date__ = "2025-10-01"
-__cache_version__ = "v8"  # Increment this to force cache refresh
+__cache_version__ = "v9_" + str(int(pd.Timestamp.now().timestamp()))  # Force cache refresh with timestamp
 
 # Page configuration
 st.set_page_config(
@@ -211,7 +211,7 @@ def test_google_connection():
         return False
 
 # Function to load data from Google Drive
-@st.cache_data(show_spinner=False)
+# @st.cache_data(show_spinner=False)  # Temporarily disabled to force fresh data
 def load_from_gdrive(file_id, month_year, month_name):
     """Load Excel file from Google Sheets"""
     # Try multiple URL formats
@@ -339,17 +339,29 @@ def load_from_gdrive(file_id, month_year, month_name):
                         df['Amount_Collected'] = 0
                 else:
                     df['Amount_Collected'] = 0
-                # Calculate revenue amounts with error handling
+                # Calculate revenue amounts with error handling and debugging
                 try:
-                    df['POS_Revenue_Amount'] = pd.to_numeric(df['Amount_Collected'], errors='coerce').fillna(0) * pd.to_numeric(df['POS_Revenue_PCT'], errors='coerce').fillna(0) / 100
-                    df['KIOSK_Revenue_Amount'] = pd.to_numeric(df['Amount_Collected'], errors='coerce').fillna(0) * pd.to_numeric(df['KIOSK_Revenue_PCT'], errors='coerce').fillna(0) / 100
-                    df['ONLINE_Revenue_Amount'] = pd.to_numeric(df['Amount_Collected'], errors='coerce').fillna(0) * pd.to_numeric(df['ONLINE_Revenue_PCT'], errors='coerce').fillna(0) / 100
+                    # Debug: Check data types before calculation
+                    print(f"Debug {month_name}: Amount_Collected dtype: {df['Amount_Collected'].dtype}")
+                    print(f"Debug {month_name}: POS_Revenue_PCT dtype: {df['POS_Revenue_PCT'].dtype}")
+                    print(f"Debug {month_name}: Amount_Collected sample: {df['Amount_Collected'].head(3).tolist()}")
+                    print(f"Debug {month_name}: POS_Revenue_PCT sample: {df['POS_Revenue_PCT'].head(3).tolist()}")
+                    
+                    # Force conversion to float64 before any arithmetic
+                    amount_col = pd.to_numeric(df['Amount_Collected'], errors='coerce').fillna(0).astype('float64')
+                    pos_pct = pd.to_numeric(df['POS_Revenue_PCT'], errors='coerce').fillna(0).astype('float64')
+                    kiosk_pct = pd.to_numeric(df['KIOSK_Revenue_PCT'], errors='coerce').fillna(0).astype('float64')
+                    online_pct = pd.to_numeric(df['ONLINE_Revenue_PCT'], errors='coerce').fillna(0).astype('float64')
+                    
+                    df['POS_Revenue_Amount'] = amount_col * pos_pct / 100
+                    df['KIOSK_Revenue_Amount'] = amount_col * kiosk_pct / 100
+                    df['ONLINE_Revenue_Amount'] = amount_col * online_pct / 100
                 except Exception as calc_error:
                     print(f"Error calculating revenue amounts for {month_name}: {str(calc_error)}")
                     # Set default values if calculation fails
-                    df['POS_Revenue_Amount'] = 0
-                    df['KIOSK_Revenue_Amount'] = 0
-                    df['ONLINE_Revenue_Amount'] = 0
+                    df['POS_Revenue_Amount'] = 0.0
+                    df['KIOSK_Revenue_Amount'] = 0.0
+                    df['ONLINE_Revenue_Amount'] = 0.0
                 
                 # Add revenue tier categorization with error handling
                 try:
@@ -456,7 +468,7 @@ with col3:
 st.markdown("---")
 
 # Load all data with progress bar
-@st.cache_data(show_spinner=False)
+# @st.cache_data(show_spinner=False)  # Temporarily disabled to force fresh data
 def load_all_data(period_selection, selected_key=None, selected_range=None, cache_version=__cache_version__):
     """Load Excel files from Google Drive based on period selection"""
     all_data = []
