@@ -68,7 +68,7 @@ GDRIVE_FILES = {
         'name': 'August 2025'
     },
     '2025-09': {
-        'id': '1TCrUFLpkwQT_wrFVshIfjSJS-tyoglWP',
+        'id': '1uomqC4qpdQa0c0i20zXYfm1j-LDyJGwC',
         'name': 'September 2025'
     }
 }
