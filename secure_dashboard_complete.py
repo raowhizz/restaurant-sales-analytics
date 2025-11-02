@@ -20,9 +20,9 @@ from scipy import stats
 warnings.filterwarnings('ignore')
 
 # Version Information
-__version__ = "2.1.0"
-__release_date__ = "2025-10-01"
-__cache_version__ = "v11"  # Fixed restaurant matching across months
+__version__ = "2.2.0"
+__release_date__ = "2025-11-02"
+__cache_version__ = "v12"  # October 2025 data added with Restaurant ID support
 
 # Page configuration
 st.set_page_config(
@@ -70,6 +70,10 @@ GDRIVE_FILES = {
     '2025-09': {
         'id': '1uomqC4qpdQa0c0i20zXYfm1j-LDyJGwC',
         'name': 'September 2025'
+    },
+    '2025-10': {
+        'id': '1EXSrN94r5OngfIFdQVCtVzDy2rQh5tB7',
+        'name': 'October 2025'
     }
 }
 
@@ -450,13 +454,13 @@ with col2:
 with col3:
     # Display selected period info
     if period_option == "All Months":
-        st.info("📊 Analyzing: All 9 months (January to September 2025)")
+        st.info("📊 Analyzing: All 10 months (January to October 2025)")
     elif period_option == "Last 6 Months":
-        st.info("📊 Analyzing: Last 6 months (April to September 2025)")
+        st.info("📊 Analyzing: Last 6 months (May to October 2025)")
     elif period_option == "Last 3 Months":
-        st.info("📊 Analyzing: Last 3 months (July to September 2025)")
+        st.info("📊 Analyzing: Last 3 months (August to October 2025)")
     elif period_option == "Last 2 Months":
-        st.info("📊 Analyzing: Last 2 months (August to September 2025)")
+        st.info("📊 Analyzing: Last 2 months (September to October 2025)")
     elif period_option == "Custom Range":
         if selected_months_range:
             st.info(f"📊 Analyzing: {', '.join(selected_months_range)}")
@@ -642,8 +646,8 @@ def calculate_mom_metrics(df):
     )
     
     # Sort columns chronologically
-    month_order = ['January 2025', 'February 2025', 'March 2025', 'April 2025', 
-                   'May 2025', 'June 2025', 'July 2025', 'August 2025', 'September 2025']
+    month_order = ['January 2025', 'February 2025', 'March 2025', 'April 2025',
+                   'May 2025', 'June 2025', 'July 2025', 'August 2025', 'September 2025', 'October 2025']
     available_months = [m for m in month_order if m in pivot_df.columns]
     pivot_df = pivot_df[available_months]
     
